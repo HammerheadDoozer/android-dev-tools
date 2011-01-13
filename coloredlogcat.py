@@ -23,6 +23,8 @@
 # modified by Josh Guilfoyle <jasta@devtcg.org> to simplify formatting back to
 # adb logcat original.  I just want colorized logcat output, nothing fancier.
 
+# modified by Rickard Hammar <hammar.rickard@gmail.com> to enable logcat -v time
+
 import os, sys, re, StringIO
 import fcntl, termios, struct
 
@@ -73,21 +75,21 @@ PROCESS_WIDTH = 8 # 8 or -1
 HEADER_SIZE = TAGTYPE_WIDTH + 1 + TAG_WIDTH + 1 + PROCESS_WIDTH + 1
 
 TAGTYPES = {
-    "V": "",
-    "D": format(fg=BLUE, bold=True),
-    "I": "",
-    "W": format(fg=YELLOW, bold=True),
-    "E": format(fg=RED, bold=True),
+    "V": "%s%s%s " % (format(fg=WHITE, bg=BLACK), "V".center(TAGTYPE_WIDTH), format(reset=True)),
+    "D": "%s%s%s " % (format(fg=BLACK, bg=BLUE), "D".center(TAGTYPE_WIDTH), format(reset=True)),
+    "I": "%s%s%s " % (format(fg=BLACK, bg=GREEN), "I".center(TAGTYPE_WIDTH), format(reset=True)),
+    "W": "%s%s%s " % (format(fg=BLACK, bg=YELLOW), "W".center(TAGTYPE_WIDTH), format(reset=True)),
+    "E": "%s%s%s " % (format(fg=BLACK, bg=RED), "E".center(TAGTYPE_WIDTH), format(reset=True)),
 }
 
-retag = re.compile("^([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
+retag = re.compile("^(\d+-\d+ \d+:\d+:\d+\.\d+ )?([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 
 # to pick up -d or -e
 adb_args = ' '.join(sys.argv[1:])
 
 # if someone is piping in to us, use stdin as input.  if not, invoke adb logcat
 if os.isatty(sys.stdin.fileno()):
-    input = os.popen("adb %s logcat" % adb_args)
+    input = os.popen("adb logcat %s" % adb_args)
 else:
     input = sys.stdin
 
@@ -99,15 +101,16 @@ while True:
 
     match = retag.match(line)
     if not match is None:
-        tagtype, tag, owner, message = match.groups()
+        time, tagtype, tag, owner, message = match.groups()
         linebuf = StringIO.StringIO()
 
         # write out tagtype colored edge
         if not tagtype in TAGTYPES: break
-        linebuf.write("%s%s%s" % (TAGTYPES[tagtype], tagtype, format(reset=True)))
+        linebuf.write(time)
+        linebuf.write("%s%s" % (TAGTYPES[tagtype], format(reset=True)))
 
         color = allocate_color(tag)
-        linebuf.write(" / %s%s%s" % (format(fg=color, bold=True), tag, format(reset=True)))
+        linebuf.write("%s%s%s" % (format(fg=color, bold=True), tag, format(reset=True)))
 
         linebuf.write(" (%s): " % owner)
 
@@ -121,15 +124,3 @@ while True:
 
     print line
     if len(line) == 0: break
-
-
-
-
-
-
-
-
-
-
-
-
